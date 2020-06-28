@@ -1,0 +1,269 @@
+library(magrittr)
+library(broom)
+library(tidyverse)
+library(stringr) 
+library(forcats)
+library(modelr)
+library(readxl)
+
+spotify <- read_excel("spotify.xlsx") #read data from spotify.xlsx
+
+#approach 1 (Forwards Alogorithm using p-values) - not considering interaction terms
+null  <-lm(popularity~1, data = spotify) 
+scope  <- popularity ~ danceability + energy + key + loudness +mode + duration_ms + time_signature + decade
+add1(null, scope = scope, test = "F")
+approach_1  <-update(null, .~.+danceability) #adding danceability
+add1(approach_1, scope = scope, test = "F")
+approach_1  <-update(approach_1, .~.+decade)#adding decade
+add1(approach_1, scope = scope, test = "F")
+approach_1  <-update(approach_1, .~.+duration_ms)#adding duration
+add1(approach_1, scope = scope, test = "F")
+approach_1  <-update(approach_1, .~.+loudness)#adding loudness
+add1(approach_1, scope = scope, test = "F")
+approach_1  <-update(approach_1, .~.+mode)#adding mode
+add1(approach_1, scope = scope, test = "F")
+#all p values are now >0.05 so we stop adding predictors
+summary(approach_1)
+
+#approach 2(backwards Algorithm using p-values) - not considering interaction terms
+full  <-lm(popularity ~ danceability + energy + key + loudness +mode + duration_ms + time_signature + decade,data=spotify)
+summary(full)
+drop1(full, test = "F")
+approach_2  <-update(full, .~.-key)#removing key
+drop1(approach_2,test="F")
+approach_2  <-update(approach_2, .~.-energy)#removing energy
+drop1(approach_2,test="F")
+approach_2  <-update(approach_2, .~.-time_signature)#removing time signature
+drop1(approach_2,test="F")
+approach_2  <-update(approach_2, .~.-mode)#removing mode
+drop1(approach_2,test="F")
+summary(approach_2)
+#all p values are now <0.05 so we stop adding predictors
+
+#approach 3(stepwise selection procedure with p-values) - not considering interaction terms
+add1(null, scope = scope, test = "F")
+approach_3  <-update(null, . ~.+danceability)
+drop1(approach_3, test = "F")
+add1(approach_3, scope = scope, test = "F")
+approach_3  <-update(approach_3, . ~.+decade)
+drop1(approach_3, test = "F")
+add1(approach_3, scope = scope, test = "F")
+approach_3  <-update(approach_3, . ~.+duration_ms)
+drop1(approach_3, test = "F")
+add1(approach_3, scope = scope, test = "F")
+approach_3  <-update(approach_3, . ~.+loudness)
+drop1(approach_3, test = "F")
+add1(approach_3, scope = scope, test = "F")
+approach_3  <-update(approach_3, . ~.+mode)
+drop1(approach_3, test = "F")
+add1(approach_3, scope = scope, test = "F")
+summary(approach_3)
+
+#approach 4(forwards algorithm using AIC values) - not considering interaction terms
+approach_4  <-step(null,scope = scope, direction = "forward")
+summary(approach_4)
+
+#approach 5(forwards algorithm using AIC values) - not considering interaction terms
+approach_5  <-step(full,scope = scope, direction = "backward")
+summary(approach_5)
+
+#approach 6(stepwise using AIC values) - not considering interaction terms
+approach_6  <-step(null,scope = scope, direction = "both")
+summary(approach_6)
+
+# Now, Lets consider interaction variables, using the bivariate analysis
+# the following interaction terms may be included 
+#decade:time_signature, mode:key, time_signature:key, decade:mode, time_signature:mode, decade:key
+
+#backwards algorithm - considering interaction terms
+full  <- popularity ~ danceability + energy + time_signature + loudness + key + mode + duration_ms + decade + 
+  decade:time_signature + mode:key + time_signature:key + decade:mode + time_signature:mode +  decade:key
+backwards.lm <- lm(full, data = spotify)
+drop1(backwards.lm, test = "F")
+backwards.lm <- update(backwards.lm, .~. - time_signature:key)#removing time_signature:key
+drop1(backwards.lm, test = "F")
+backwards.lm <- update(backwards.lm, .~. - time_signature:mode)#removing time_signature:mode
+drop1(backwards.lm, test = "F")
+backwards.lm <- update(backwards.lm, .~. - energy)#removing energy
+drop1(backwards.lm, test = "F")
+backwards.lm <- update(backwards.lm, .~. - key:decade)#removing key:decade
+drop1(backwards.lm, test = "F")
+summary(backwards.lm)
+
+#forwards algorithm - considering interaction terms
+smallest <- lm(popularity~1,data=spotify)
+add1(forwards.lm, scope = full, test = "F")
+forwards.lm <-update(smallest, .~.+danceability)#adding danceability
+add1(forwards.lm, scope = full, test = "F")
+forwards.lm <-update(forwards.lm, .~.+decade)#adding decade
+add1(forwards.lm, scope = full, test = "F")
+forwards.lm <-update(forwards.lm, .~.+duration_ms)#adding duration
+add1(forwards.lm, scope = full, test = "F")
+forwards.lm <-update(forwards.lm, .~.+loudness)#adding loudness
+add1(forwards.lm, scope = full, test = "F")
+forwards.lm <-update(forwards.lm, .~.+mode)#adding mode
+add1(forwards.lm, scope = full, test = "F")
+summary(forwards.lm)
+
+#stepwise algorithm - considering interaction terms
+step.lm <- lm(smallest, data = spotify)
+add1(step.lm, scope = full, test = "F")
+step.lm <- update(step.lm, .~. + danceability)#adding dancebaility
+drop1(step.lm, test = "F")
+add1(step.lm, scope = full, test = "F")
+step.lm <- update(step.lm, .~. + decade)#adding daecade
+drop1(step.lm, test = "F")
+add1(step.lm, scope = full, test = "F")
+step.lm <- update(step.lm, .~. + duration_ms)#adding duration
+drop1(step.lm, test = "F")
+add1(step.lm, scope = full, test = "F")
+step.lm <- update(step.lm, .~. + loudness)#adding loudness
+drop1(step.lm, test = "F")
+add1(step.lm, scope = full, test = "F")
+step.lm <- update(step.lm, .~. + mode)#adding mode
+drop1(step.lm, test = "F")
+add1(step.lm, scope = full, test = "F")
+summary(step.lm)
+
+#backwards automatic - considering interaction terms
+backward.auto.lm <- lm(full, data = spotify)
+backward.auto.lm <- step(backward.auto.lm, direction = "backward")
+summary(backward.auto.lm)
+
+#forwards automatic - considering interaction terms
+forward.auto.lm <- lm(smallest, data = spotify) 
+forward.auto.lm <- step(forward.auto.lm, scope = full, direction = "forward")
+summary(forward.auto.lm)
+
+#stepwise automatic - considering interaction terms
+step.auto.lm <- lm(smallest, data = spotify) 
+step.auto.lm <- step(step.auto.lm, scope = full,direction = "both")
+summary(step.auto.lm)
+
+
+#table to compare all 12 models produced so far
+comparison_of_coefficents=list(forwards_interaction = forwards.lm,
+                               backwards_interaction = backwards.lm,
+                               step_interaction = step.lm,
+                               forward_auto_interaction = forward.auto.lm,
+                               backward_auto_interaction = backward.auto.lm, 
+                               step_auto_interaction = step.auto.lm,
+                               forwards_no_interaction = approach_1,
+                               backwards_no_interaction = approach_2,
+                               stepwise_no_interaction = approach_3,
+                               forwards_no_interaction_auto = approach_4,
+                               backwards_no_interaction_auto = approach_5,
+                               stepwise_no_interaction_auto = approach_6) %>%
+  map_df(broom::tidy, .id = "Model") %>% 
+  select(Model, term, estimate) %>% 
+  spread(Model, estimate)
+
+#Looking at the tibble we see that there only a few models that differ to one another, hence we can consider the following -
+#backwards automatic (no interaction)/forwards automatic (with interation)/forwards (with interaction)/forwards automatic (no interation)/all 4 of the step models
+#backwards (no interaction)
+#backwards automatic (with interaction)
+#backwards (with interaction)
+
+# so we have 4 different models to consider, (since 8 models are the same and they differ with 4 other models)
+#lets perform CV on the -
+#backwards automatic (no interaction),
+#backwards (no interaction),
+#backwards automatic (with interaction),
+#backwards (with interaction),
+
+#Cross validation
+
+spotify_CV  <- crossv_kfold(spotify, k = 5)
+spotify_CV
+
+models1  <-map(spotify_CV$train,~approach_5)#popularity ~ danceability + loudness + mode + duration_ms + decade
+models2  <-map(spotify_CV$train,~approach_2)#popularity ~ danceability + loudness + duration_ms + decade
+models3  <-map(spotify_CV$train,~backward.auto.lm)#popularity ~ danceability + energy + time_signature + 
+#loudness + key + mode + duration_ms + decade + time_signature:decade + 
+#key:mode + mode:decade
+models4  <-map(spotify_CV$train,~backwards.lm)#popularity ~ danceability + energy + time_signature + 
+#loudness + key + mode + duration_ms + decade + time_signature:decade + 
+#key:mode + mode:decade + key:decade
+
+
+get_pred  <- function(model, test_data){
+  data  <-as.data.frame(test_data)
+  pred  <-add_predictions(data, model)
+  return(pred)
+}
+
+pred1  <-map2_df(models1, spotify_CV$test, get_pred, .id = "Run") #approach_5
+pred2  <- map2_df(models2, spotify_CV$test, get_pred, .id = "Run")#approach_2
+pred3  <-map2_df(models3, spotify_CV$test, get_pred, .id = "Run")#backwards.auto.lm
+pred4  <- map2_df(models4, spotify_CV$test, get_pred, .id = "Run")#backwards.lm
+
+#MSE for approach_5
+MSE1  <- pred1%>%
+  group_by(Run)%>%
+  summarise(
+    MSE =mean( (popularity- pred) ^2),
+    n =n())
+MSE1
+
+#MSE for approach_2
+MSE2  <- pred2%>%
+  group_by(Run)%>%
+  summarise(
+    MSE =mean( (popularity- pred) ^2),
+    n =n())
+MSE2
+
+#MSE for backwards.auto.lm
+MSE3  <- pred3%>%
+  group_by(Run)%>%
+  summarise(
+    MSE =mean( (popularity- pred) ^2),
+    n =n())
+MSE3
+
+#MSE for backwards.lm
+MSE4  <- pred4%>%
+  group_by(Run)%>%
+  summarise(
+    MSE =mean( (popularity- pred) ^2),
+    n =n())
+MSE4
+
+#CV for approach_5
+CV1  <-sum(MSE1$MSE*MSE1$n)/ sum(MSE1$n)
+CV1
+
+#CV for approach_2
+CV2  <-sum(MSE2$MSE*MSE2$n)/ sum(MSE2$n)
+CV2
+
+#CV for backwards.auto.lm
+CV3  <-sum(MSE3$MSE*MSE3$n)/ sum(MSE3$n)
+CV3
+
+#CV for backwards.lm
+CV4  <-sum(MSE4$MSE*MSE4$n)/ sum(MSE4$n)
+CV4
+
+#The lowest CV values were for CV3 and CV4 (they were practically the same - about 163)
+#These models were -
+#1. backwards.auto.lm: #popularity ~ danceability + energy + time_signature + 
+#loudness + key + mode + duration_ms + decade + time_signature:decade + 
+#key:mode + mode:decade
+
+#2. backwards.lm: #popularity ~ danceability + energy + time_signature + 
+#loudness + key + mode + duration_ms + decade + time_signature:decade + 
+#key:mode + mode:decade + key:decade
+#since the 1st model is slightly smaller (has 1 less interaction term), we will select this as our final model
+
+# final model is #popularity ~ danceability + energy + time_signature + 
+#loudness + key + mode + duration_ms + decade + time_signature:decade + 
+#key:mode + mode:decade
+
+
+#using the coefficents from the comparison_of_coefficents table-
+#prediction of the popularity for a three minute song from the 90s in the Key of C using our model
+Popularity_prediction=mean(spotify$danceability)*1.367612e+01 -2.988546e+00*mean(spotify$energy)+ 9.366721e-01*mean(spotify$time_signature)+
+  3.424707e-01*mean(spotify$loudness)-2.353084e+00 +1.364845e-05*3 +1.918680e+00-3.212647e+00-6.230977e+00 +2.857782e+01
+Popularity_prediction
+#the predicted value is 23.94795
